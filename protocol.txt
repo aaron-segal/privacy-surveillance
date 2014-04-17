@@ -1,0 +1,35 @@
+We're imagining a system where certain government entities want to figure out which people appear on multiple lists of interest, e.g. cell tower data, where each list contains the set of all phones that were within range of tower X at time Y. The government should only learn the people in the intersection of those sets; they should not learn about anyone else. Also, the intersection protocol should not even be performed without the consent of some authorizing authority, and the data that needs to be stored in order to enable the running of this protocol should be encrypted securely, and not stored alongside the keys needed to decrypt it.
+
+There are six types of people/entities we are interested in  in our framework:
+
+    Cell phone users, about whom the information refers
+    Phone companies, who generate information but do not make it available except by sending it, in encrypted form, to
+    Data repositories, who hold onto encrypted data and participate in the protocol
+    Requesters, agencies such as the NSA or FBI who want to learn the privateset intersections
+    Authorizers, such as FISA judges or judicial oversight committees whose consent is needed to run the protocol
+    Attackers, both "insiders" who work for data repositories, requesters, or authorizers and "outsiders" who may be possibly be observing/interfering with network traffic or trying to hack into repositories.
+
+The goal is to compute the intersection of several sets of cell tower data (e.g. all phones near tower X at time Y) in such a way that:
+
+    The protocol can only be run with the cooperation of a requester and authorizers, possibly some threshold of authorizers (such as one from type A, one from type B, one from type C)
+    When the protocol is run, the requesters learn the intersection of the sets, and no party other than requesters and possibly authorizers learns anything other than which sets are being intersected
+    No party learns anything about users not in the intersection.
+    The data stored at the repositories is secure against attackers and the repositories themselves (i.e. it yields no information to someone who can see the encrypted data, even with the repository's private keys)
+    The phone companies do not need to participate in the protocol nor store any additional data to enable the protocol (except possibly keys)
+    If the set intersection does not meet a certain policy, the requesters do not learn anything except that the intersection did not meet this policy. Example: there are no more than X users in the intersection. This is not a core requirement but a feature it would be nice to have.
+
+The following protocol is a first stab at something like the above. It's written in Java, based partly on Ennan's code. The system uses ElGamal encryption as the randomized commutative encryption scheme for securiing data stored in the repositories, and Pohlig-Hellman encryption as the deterministic commutative encryption scheme used to blind the data during the private set intersection protocol itself. Each of the authorities is expected to have a long-term ElGamal keypair (using the same group and generator), but need not have a long-term Pohlig-Hellman key.
+
+The program takes as input for each user an ElGamal private key, and a set of data that has been ElGamal encrypted under the public keys of all three users in advance. It also takes IP addresses for the other users.
+
+The program's output for each user is the intersection of all users' sets. Intermediate values also allow users to learn the cardinalities of the intersections between only two of the subsets, but no other data is leaked.
+
+In our execution scenario, the phone companies would do the initial encryption and the encrypted data repository would store the encrypted data. To set up the protocol, it would send the data sets to be intersected to the authorities, possibly splitting them up so that each of the three authorities gets the same number of sets. As far as timing results go, there should be no difference between 3 sets of 1000 entries each or 30 sets of 100 entries each, as long as the number of participants stays the same.
+
+The protocol runs as follows:
+
+Initialize. Read in data, and generate a Pohlig-Hellman key to be used only during this execution of the protocol, and then discarded.
+
+Phase 1. Each user does the following to its data set: use its ElGamal private key to decrypt each entry in its set, encrypt each entry with its Pohlig-Hellman key, and then shuffle the set. The user then forwards the set on to the next user; upon receiving a set from the previous user, the user performs the same decryption/encryption/shuffle routine and then passes the set along. The phase is complete when every user gets back the set it started with, after having been operated on by all parties.
+Phase 2. Each user forwards the data set it has on to the next user again, this time without altering it. Each time it receives a forwarded set, It keeps running track of the intersection by intersecting the previous set with the new one. The phase is done when every user receives its data set again. At this point, the users each have the set intersection, with the elements encrypted by each user's Pohlig-Hellman key. At this point, the protocol may be aborted if the size of the set intersection is above a user-defined constraint.
+Phase 3. As in phase 1: Each user uses its Pohlig-Hellman key to decrypt each element of the intersection set, shuffles the set (this may not be necessary), then forwards the set to the next user; each user performs the same operation when it receives a set, and continues forwarding the sets on. The phase is done when every user receives the plaintext of the intersection set.
