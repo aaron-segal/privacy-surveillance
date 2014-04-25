@@ -3,6 +3,9 @@ import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.ArrayDeque;
+
+import psi.Msg.Type;
 
 public class SocketForPrev extends Thread {
 
@@ -16,6 +19,7 @@ public class SocketForPrev extends Thread {
 	private String prevNodeIP;
 	private int prevNodePort;
 	private int bytesRead = 0;
+	private ArrayDeque<MsgHandler> queue;
 	public static final int MAX_TRIES = 10;
 	public static final long SLEEP_BETWEEN_TRIES = 1000;
 
@@ -23,19 +27,20 @@ public class SocketForPrev extends Thread {
 		this.user = user;
 		this.prevNodeIP = ip;
 		this.prevNodePort = port;
+		queue = new ArrayDeque<MsgHandler>();
 		start();
 	}
 	/*
 	public void sendToPrevNode(String msg){
 		out.println(msg);
-		System.out.println("[To Prev Node]" + msg);
+		Intersect.println("[To Prev Node]" + msg);
 	}
 
 	public String readFromPrevNode(){
 		String inLine = null;
 		try {
 			inLine = in.readLine();
-			System.out.println("[From Prev Node]" + inLine);
+			Intersect.println("[From Prev Node]" + inLine);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -58,7 +63,7 @@ public class SocketForPrev extends Thread {
 	}
 
 	public void run() {
-		System.out.println ("Attemping to connect to host " +
+		Intersect.println ("Attemping to connect to host " +
 				prevNodeIP + " on port " + prevNodePort + ".");
 
 		for (int i = 0; i < MAX_TRIES && !user.prevConnected; i++) {
@@ -69,7 +74,7 @@ public class SocketForPrev extends Thread {
 
 				outputStream = new ObjectOutputStream(prevSocket.getOutputStream());
 				inputStream = new ObjectInputStream(prevSocket.getInputStream());
-				System.out.println("[Previous node] connected!");
+				Intersect.println("[Previous node] connected!");
 				user.prevConnected = true;
 			} catch (UnknownHostException e) {
 				System.err.println("Don't know about host: " + prevNodeIP);
@@ -97,7 +102,7 @@ public class SocketForPrev extends Thread {
 	// this is for string 
 	public void waitingForPrevNodeMsg(){
 		String inputLine = null;
-		System.out.println("Waiting for prev node to send msg ...");
+		Intersect.println("Waiting for prev node to send msg ...");
 		try {
 			while ((inputLine = in.readLine()) != null){ 
 				pendingMsgFromPrev(inputLine);
@@ -107,11 +112,11 @@ public class SocketForPrev extends Thread {
 		} 
 	}
 	 */
-	
+
 	public int getBytesRead() {
 		return bytesRead;
 	}
-	
+
 	public void waitingForPrevNodeMsgObj(){
 		Msg msgIn = null;
 		try {
@@ -129,7 +134,11 @@ public class SocketForPrev extends Thread {
 				bytesRead += baos.toByteArray().length;
 
 				MsgHandler msgHandle = new MsgHandler(user, msgIn);
-				msgHandle.start();
+				if (user.stageTwoReady || (msgIn.type != Type.STAGE_TWO && msgIn.type != Type.ERROR)) {
+					msgHandle.start();
+				} else {
+					queue.add(msgHandle);
+				}
 			}
 		} catch (EOFException e) {
 
@@ -139,6 +148,12 @@ public class SocketForPrev extends Thread {
 			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
+		}
+	}
+
+	public void startQueue() {
+		while (!queue.isEmpty()) {
+			queue.remove().start();
 		}
 	}
 }

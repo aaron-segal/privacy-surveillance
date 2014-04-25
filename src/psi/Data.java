@@ -20,7 +20,7 @@ public class Data {
 	public Data(String fileName){
 		ph = new PohligHellman();
 		this.fileName = fileName;
-		System.out.println("file name:" + fileName);
+		Intersect.println("file name:" + fileName);
 		myFile = new ArrayList<BigInteger[]>();
 		encryptedFile = new ArrayList<BigInteger[]>();
 		intersectionSet = new HashMap<String, ArrayList<BigInteger> >();
@@ -29,7 +29,7 @@ public class Data {
 	public Data(String fileName, BigInteger prime){
 		ph = new PohligHellman(prime);
 		this.fileName = fileName;
-		System.out.println("file name:" + fileName);
+		Intersect.println("file name:" + fileName);
 		myFile = new ArrayList<BigInteger[]>();
 		encryptedFile = new ArrayList<BigInteger[]>();
 		intersectionSet = new HashMap<String, ArrayList<BigInteger> >();
@@ -42,7 +42,7 @@ public class Data {
 			results.add(b[0]);
 		}
 		this.intersectionSet.put(id, results);
-		System.out.println("[Data]Stored data " + id + ".");
+		Intersect.println("[Data]Stored data " + id + ".");
 	}
 
 	/**
@@ -50,8 +50,8 @@ public class Data {
 	 * @return true if success, false if failure
 	 */
 	public boolean readInFile(){
-		System.out.println("[Data] start read in file...");
-		System.out.println("[Data]" + fileName);
+		Intersect.println("[Data] start read in file...");
+		Intersect.println("[Data]" + fileName);
 		BufferedReader reader;
 		try {
 			reader = new BufferedReader(new FileReader(fileName));
@@ -78,7 +78,7 @@ public class Data {
 				}
 			}
 			reader.close();
-			System.out.println("[Data]read file success !");
+			Intersect.println("[Data]read file success !");
 			return true;
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -93,12 +93,12 @@ public class Data {
 
 	public void encryptMyFile(CommutativeElGamal elg){
 		if (this.encryptedFile.size() != 0 ){
-			System.out.println("[Data] Already encrypted!");
+			Intersect.println("[Data] Already encrypted!");
 			return;
 		}
 		encryptedFile = encryptFile(myFile, elg);
-		System.out.println("[Data] Got my file encrypted!");
-		System.out.println("[Test]last line:" + encryptedFile.get(encryptedFile.size()-1)[0]);
+		Intersect.println("[Data] Got my file encrypted!");
+		Intersect.println("[Test]last line:" + encryptedFile.get(encryptedFile.size()-1)[0]);
 	}
 
 
@@ -109,6 +109,8 @@ public class Data {
 	public void shuffleMyEncIntersection() {
 		Collections.shuffle(encryptedIntersection);
 	}
+	
+	
 
 	/*
 	public BigInteger murmurHashString(String str){
@@ -170,14 +172,15 @@ public class Data {
 		return decrypted;
 	}
 
-	public void computeIntersection(){
+	public int computeIntersection(){
 		// return how many are the same
 		encryptedIntersection = cloneList(this.intersectionSet.values().iterator().next()); // get one value
 		for (ArrayList<BigInteger> en_list : this.intersectionSet.values()){
 			encryptedIntersection.retainAll(en_list);
 		}
 		int num = encryptedIntersection.size();
-		System.out.println("[Data]Size of intersection = "+ num);
+		Intersect.println("[Data]Size of intersection = "+ num);
+		return num;
 	}
 
 	public static ArrayList<BigInteger> cloneList(ArrayList<BigInteger> list) {

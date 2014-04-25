@@ -23,7 +23,7 @@ public class SocketForNext extends Thread{
 
 	public void run(){
 
-		System.out.println ("Waiting for connection.....");
+		Intersect.println ("Waiting for connection.....");
 		try { 
 			nextSocket = user.listenSocket.accept(); 
 			//out = new PrintWriter(nextSocket.getOutputStream(), true);
@@ -38,7 +38,7 @@ public class SocketForNext extends Thread{
 			System.exit(1); 
 		} 
 
-		System.out.println ("[Next Node] Connected!");
+		Intersect.println ("[Next Node] Connected!");
 
 		user.nextConnected = true;
 
@@ -68,7 +68,7 @@ public class SocketForNext extends Thread{
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		if (obj.type == Msg.Type.STAGE_TWO) {
+		if (obj.type == Msg.Type.STAGE_TWO || obj.type == Msg.Type.ERROR) {
 			synchronized (user) {
 				user.finalData++;
 				user.notify();
@@ -80,7 +80,7 @@ public class SocketForNext extends Thread{
  	public void sendToNextNode(String msg){
 		if (msg != null){
 			this.out.println(msg);
-			System.out.println("[To Next Node]" + msg);
+			Intersect.println("[To Next Node]" + msg);
 		}
 	}
 
@@ -91,7 +91,7 @@ public class SocketForNext extends Thread{
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		System.out.println("[From Next Node]" + inputLine);
+		Intersect.println("[From Next Node]" + inputLine);
 	}
 	 */
 	public void closeSocket(){

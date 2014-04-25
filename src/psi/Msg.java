@@ -6,9 +6,9 @@ import java.util.ArrayList;
 
 public class Msg implements Serializable{
 
-	public enum Type {NONE, STAGE_ONE, DONE_STAGE_ONE, STAGE_TWO, DONE_STAGE_TWO}
+	public enum Type {NONE, STAGE_ONE, DONE_STAGE_ONE, STAGE_TWO, ERROR}
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 2L;
 	public Type type;
 	public String origin;
 	public ArrayList<String> operatedOnBy;
@@ -16,7 +16,7 @@ public class Msg implements Serializable{
 	public ArrayList<BigInteger[]> arrContent;
 	public ArrayList<BigInteger> content;
 
-	private Msg(){
+	private Msg() {
 		type = Type.NONE;
 		origin = "";
 		operatedOnBy = null;
@@ -25,7 +25,8 @@ public class Msg implements Serializable{
 		content = null;
 	}
 
-	private Msg(Type t,String or, ArrayList<String> by, ArrayList<BigInteger[]> arrCon, ArrayList<BigInteger> con ){
+	private Msg(Type t,String or, ArrayList<String> by, ArrayList<BigInteger[]> arrCon,
+			ArrayList<BigInteger> con ) {
 		type = t;
 		origin = or;
 		operatedOnBy = by;
@@ -34,20 +35,27 @@ public class Msg implements Serializable{
 		whoGot = new ArrayList<String>();
 	}
 
-	public static Msg createMyStageOneMsg(Intersect user){
+	public static Msg createMyStageOneMsg(Intersect user) {
 		Type t_tmp = Type.STAGE_ONE;
 		ArrayList<String> by_tmp = new ArrayList<String>();
 		by_tmp.add(user.id);
 		ArrayList<BigInteger[]> con_tmp = user.myData.encryptedFile;
-		return new Msg(t_tmp,user.id, by_tmp, con_tmp, null );
+		return new Msg(t_tmp, user.id, by_tmp, con_tmp, null );
 	}
 
-	public static Msg createMyStageTwoMsg(Intersect user){
+	public static Msg createMyStageTwoMsg(Intersect user) {
 		Type t_tmp = Type.STAGE_TWO;
 		ArrayList<String> by_tmp = new ArrayList<String>();
 		by_tmp.add(user.id);
 		ArrayList<BigInteger> con_tmp = user.myData.encryptedIntersection;
-		return new Msg(t_tmp,user.id, by_tmp, null, con_tmp );
+		return new Msg(t_tmp, user.id, by_tmp, null, con_tmp );
+	}
+	
+	public static Msg createMyErrorMsg(Intersect user) {
+		Type t_tmp = Type.ERROR;
+		ArrayList<String> by_tmp = new ArrayList<String>();
+		by_tmp.add(user.id);
+		return new Msg(t_tmp, user.id, by_tmp, null, null);
 	}
 
 }
