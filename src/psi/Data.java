@@ -10,31 +10,38 @@ import java.util.HashMap;
 public class Data {
 
 	public String fileName;
+	public int numThreads;
 	public ArrayList<BigInteger[]> myFile;
-	public ArrayList<BigInteger[]> encryptedFile;
 	public ArrayList<BigInteger> encryptedIntersection;
 	public ArrayList<BigInteger> finalIntersection;
 	public HashMap<String, ArrayList<BigInteger> > intersectionSet;
 	private PohligHellman ph;
 
 	public Data(String fileName){
+		this(fileName, 1);
+	}
+
+	public Data(String fileName, int numThreads){
 		ph = new PohligHellman();
 		this.fileName = fileName;
+		this.numThreads = 1;
 		Intersect.println("file name:" + fileName);
 		myFile = new ArrayList<BigInteger[]>();
-		encryptedFile = new ArrayList<BigInteger[]>();
 		intersectionSet = new HashMap<String, ArrayList<BigInteger> >();
 	}
 
 	public Data(String fileName, BigInteger prime){
-		ph = new PohligHellman(prime);
-		this.fileName = fileName;
-		Intersect.println("file name:" + fileName);
-		myFile = new ArrayList<BigInteger[]>();
-		encryptedFile = new ArrayList<BigInteger[]>();
-		intersectionSet = new HashMap<String, ArrayList<BigInteger> >();
+		this(fileName, prime, 1);
 	}
 
+	public Data(String fileName, BigInteger prime, int numThreads){
+		ph = new PohligHellman(prime);
+		this.fileName = fileName;
+		this.numThreads = numThreads;
+		Intersect.println("file name:" + fileName);
+		myFile = new ArrayList<BigInteger[]>();
+		intersectionSet = new HashMap<String, ArrayList<BigInteger> >();
+	}
 
 	public void storeListForIntersection(String id, ArrayList<BigInteger[]> content){
 		ArrayList<BigInteger> results = new ArrayList<BigInteger>();
@@ -92,25 +99,20 @@ public class Data {
 	}
 
 	public void encryptMyFile(CommutativeElGamal elg){
-		if (this.encryptedFile.size() != 0 ){
-			Intersect.println("[Data] Already encrypted!");
-			return;
-		}
-		encryptedFile = encryptFile(myFile, elg);
+		encryptFile(myFile, elg);
 		Intersect.println("[Data] Got my file encrypted!");
-		Intersect.println("[Test]last line:" + encryptedFile.get(encryptedFile.size()-1)[0]);
 	}
 
 
-	public void shuffleMyEncFile(){
-		Collections.shuffle(encryptedFile);
+	public void shuffleMyFile(){
+		Collections.shuffle(myFile);
 	}
 
 	public void shuffleMyEncIntersection() {
 		Collections.shuffle(encryptedIntersection);
 	}
-	
-	
+
+
 
 	/*
 	public BigInteger murmurHashString(String str){
@@ -138,38 +140,50 @@ public class Data {
 	}
 	 */
 
-	public ArrayList<BigInteger[]> encryptFile(ArrayList<BigInteger[]> file, CommutativeElGamal elg){
-		ArrayList<BigInteger[]> encFile  = new ArrayList<BigInteger[]>();
-		for (BigInteger[] val : file){
-
-			/* 
-			 * decrypt from ElGamal, then encrypt all remaining c1s and c2 with PohligHellman.
-			 * For example, if xi is i's ElGamal private key, yi is the ephemeral private key that goes
-			 * with i's public key, and and zi is i's Pohlig-Hellman encryption key, then 
-			 * [1, g^y1, 2, g^y2, m*g^(x1y1+x2y2)]
-			 * is operated on by 1, and becomes
-			 * [2, g^y2z1, m*g^x2y2z1].
-			 */
-			BigInteger[] decrypted = elg.partialDecrypt(val);
-			for (int i = 1; i < decrypted.length; i += 2) {
-				decrypted[i] = ph.encrypt(decrypted[i]);
-			}
-			decrypted[decrypted.length - 1] = ph.encrypt(decrypted[decrypted.length - 1]); 
-			encFile.add(decrypted);
+	public void encryptFile(ArrayList<BigInteger[]> file, CommutativeElGamal elg){
+		EncryptWorker threads[];
+		if (numThreads == 0) {
+			threads = new EncryptWorker[file.size()];
+		} else {
+			threads = new EncryptWorker[numThreads];
 		}
-		return encFile;
+		for (int i = 0; i < threads.length; i++) {
+			threads[i] = new EncryptWorker(file.listIterator(i * file.size() / threads.length), 
+					(i+1) * file.size() / threads.length, elg, ph);
+			threads[i].start();
+		}
+		for (int i = 0; i < threads.length; i++) {
+			try {
+				threads[i].join();
+			} catch (InterruptedException e) {
+				System.err.println(e);
+			}
+		}
 	}
 
 	public void decryptMyIntersection() {
-		encryptedIntersection = decryptIntersection(encryptedIntersection);
+		decryptIntersection(encryptedIntersection);
 	}
 
-	public ArrayList<BigInteger> decryptIntersection(ArrayList<BigInteger> list) {
-		ArrayList<BigInteger> decrypted = new ArrayList<BigInteger>();
-		for (BigInteger bi : list) {
-			decrypted.add(ph.decrypt(bi));
+	public void decryptIntersection(ArrayList<BigInteger> list) {
+		DecryptWorker threads[];
+		if (numThreads == 0) {
+			threads = new DecryptWorker[list.size()];
+		} else {
+			threads = new DecryptWorker[numThreads];
 		}
-		return decrypted;
+		for (int i = 0; i < threads.length; i++) {
+			threads[i] = new DecryptWorker(list.listIterator(i * list.size() / threads.length), 
+					(i+1) * list.size() / threads.length, ph);
+			threads[i].start();
+		}
+		for (int i = 0; i < threads.length; i++) {
+			try {
+				threads[i].join();
+			} catch (InterruptedException e) {
+				System.err.println(e);
+			}
+		}
 	}
 
 	public int computeIntersection(){

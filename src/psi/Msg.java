@@ -39,7 +39,7 @@ public class Msg implements Serializable{
 		Type t_tmp = Type.STAGE_ONE;
 		ArrayList<String> by_tmp = new ArrayList<String>();
 		by_tmp.add(user.id);
-		ArrayList<BigInteger[]> con_tmp = user.myData.encryptedFile;
+		ArrayList<BigInteger[]> con_tmp = user.myData.myFile;
 		return new Msg(t_tmp, user.id, by_tmp, con_tmp, null );
 	}
 

@@ -27,9 +27,8 @@ public class MsgHandler extends Thread {
 		if (!msg.operatedOnBy.contains(user.id)){
 			//if yes, encrypt, and pass on to next
 			Intersect.println("process msg to pass on...");
-			ArrayList<BigInteger[]> enc_cont = user.myData.encryptFile(msg.arrContent, user.elg); // encrypt
-			Collections.shuffle(enc_cont);
-			msg.arrContent = enc_cont; // shuffle
+			user.myData.encryptFile(msg.arrContent, user.elg); // encrypt
+			Collections.shuffle(msg.arrContent);
 			msg.operatedOnBy.add(user.id); // add encrypted by
 			user.nextSocket.sendMsg(msg); // send to next
 
@@ -72,9 +71,8 @@ public class MsgHandler extends Thread {
 			//check if I want to decrypt
 			if (user.wantToDecrypt) {
 				//if yes, decrypt, and pass on to next
-				ArrayList<BigInteger> dec_cont = user.myData.decryptIntersection(msg.content); // encrypt
-				Collections.shuffle(dec_cont); // shuffle
-				msg.content = dec_cont;
+				user.myData.decryptIntersection(msg.content); // encrypt
+				Collections.shuffle(msg.content); // shuffle
 			} else {
 				//if i don't want to decrypt, send error message instead
 				msg.type = Type.ERROR;

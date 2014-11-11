@@ -28,12 +28,14 @@ public class Intersect extends Thread {
 	protected int maxIntSize = -1;
 	protected boolean wantToDecrypt = true;
 	protected boolean stageTwoReady = false;
+	protected int numThreads = 1; // 0 = use as many as possible
 
 	private long startCpuTime = 0L;
-	private long stageOneCpuTime = 0L;
-	private long stageTwoCpuTime = 0L;
 	private long realCpuTime = 0L;
 	private long totalCpuTime = 0L;
+	private long wallTimeAll = 0L;
+	private long wallTimeInput = 0L;
+	private long wallTimeCalc = 0L;
 
 	public static final int SLEEP = 10000;
 	public static final String PORT = "PORT";
@@ -43,15 +45,17 @@ public class Intersect extends Thread {
 	public static final String PRIVATE_KEY = "PRIVATEKEY";
 	public static final String NUM_USERS = "NUMUSERS";
 	public static final String MAX_INTERSECTION = "MAXINTERSECTION";
+	public static final String THREADS = "THREADS";
 
 	// command line arguments take precedence over config file arguments
 
 	private static void usage() {
-		System.err.println("Usage: java Intersect config_file [-i input_file] [-k key_file] [-q] [-s]");
+		System.err.println("Usage: java Intersect config_file [-i input_file] [-k key_file] [-q] [-s] [-t #threads]");
 	}
 
 	public Intersect(String[] args) {
 
+		wallTimeAll = System.currentTimeMillis();
 		if (args.length < 1) {
 			usage();
 			System.exit(1);
@@ -88,15 +92,64 @@ public class Intersect extends Thread {
 				quiet = true;
 			} else if (args[i].equals("-s")) {
 				suppress_timing = true;
+			} else if (args[i].equals("-t")) {
+				if (args.length == i+1) {
+					usage();
+					return;
+				} else {
+					config.setProperty(THREADS, args[i+1]);
+					i++;
+				}
 			} else {
 				usage();
 				return;
 			}
 		}
 
-		users = Integer.parseInt(config.getProperty(NUM_USERS));
 		port = Integer.parseInt(config.getProperty(PORT));
+		// open up a new socket to communicate with next node
+
+		try {
+			listenSocket = new ServerSocket(port);
+			Intersect.println("IP:Host = " + "127.0.0.1" + ":" + port);
+		} catch (IOException e) {
+			System.err.println("Could not listen on port:" + port);
+			return;
+		} 
+
+		nextSocket = new SocketForNext(this);
+		nextSocket.start();
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+
+		}
+
+		String[] address = config.getProperty(PREVIOUS_IP).split(":");
+		String ipPrev = address[0]; // ip
+		int portPrev = Integer.parseInt(address[1]); //port
+
+		prevSocket = new SocketForPrev(this, ipPrev, portPrev);
+
+
+		while (!((prevConnected == true) && (nextConnected == true))){
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+
+			}
+		}
+		Intersect.println("Both connected !");
+		// from here connected
+		// read in file line by line
+		// E(m) encrypt line by line murmur encrypt
+		// P(E(m)) shuffle
+
+		wallTimeInput = System.currentTimeMillis();
+
+		users = Integer.parseInt(config.getProperty(NUM_USERS));
 		maxIntSize = Integer.parseInt(config.getProperty(MAX_INTERSECTION, "-1"));
+		numThreads = Integer.parseInt(config.getProperty(THREADS, "1"));
 		id = config.getProperty(ID);
 		Intersect.println("ID = " + id);
 
@@ -122,45 +175,7 @@ public class Intersect extends Thread {
 			return;
 		}
 
-		// open up a new socket to communicate with next node
-
-		try {
-			listenSocket = new ServerSocket(port);
-			Intersect.println("IP:Host = " + "127.0.0.1" + ":" + port);
-		} catch (IOException e) {
-			System.err.println("Could not listen on port:" + port);
-			return;
-		} 
-
-		nextSocket = new SocketForNext(this);
-		nextSocket.start();
-		try {
-			Thread.sleep(1000);
-		} catch (InterruptedException e) {
-
-		}
-
-		String[] address = config.getProperty(PREVIOUS_IP).split(":");
-		String ipPrev = address[0]; // ip
-		int portPrev = Integer.parseInt(address[1]); //port
-
-		myData = new Data(config.getProperty(INPUT_FILE), elg.getPrime());
-
-		prevSocket = new SocketForPrev(this, ipPrev, portPrev);
-
-
-		while (!((prevConnected == true) && (nextConnected == true))){
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-
-			}
-		}
-		Intersect.println("Both connected !");
-		// from here connected
-		// read in file line by line
-		// E(m) encrypt line by line murmur encrypt
-		// P(E(m)) shuffle
+		myData = new Data(config.getProperty(INPUT_FILE), elg.getPrime(), numThreads);
 
 		File fileTest = new File(config.getProperty(INPUT_FILE));
 		if (!fileTest.canRead()) {
@@ -181,6 +196,7 @@ public class Intersect extends Thread {
 		//systemTime -= currentSystemTime();
 		//userTime -= currentUserTime();
 		startCpuTime = currentCpuTime();
+		wallTimeCalc = System.currentTimeMillis();
 
 		Intersect.println("Stage one beginning...");
 
@@ -188,7 +204,7 @@ public class Intersect extends Thread {
 		//time1 = System.currentTimeMillis();
 		//cpuTime -= currentCpuTime();
 		myData.encryptMyFile(elg);
-		myData.shuffleMyEncFile();
+		myData.shuffleMyFile();
 		//start create message send to next node
 		Msg mymsg = Msg.createMyStageOneMsg(this);
 		//cpuTime += currentCpuTime();
@@ -206,8 +222,7 @@ public class Intersect extends Thread {
 
 		//sSystemTime = currentSystemTime() - systemTime;
 		//sUserTime = currentUserTime() - userTime;
-		stageOneCpuTime = currentCpuTime() - startCpuTime;
-		int stageOneBytesRead = prevSocket.getBytesRead();
+		//stageOneCpuTime = currentCpuTime() - startCpuTime;
 		Intersect.println("Stage three beginning...");
 		//time2 = System.currentTimeMillis();
 		//cpuTime -= currentCpuTime();
@@ -243,20 +258,13 @@ public class Intersect extends Thread {
 		Intersect.println("Done!");
 		nextSocket.closeSocket();
 
-		stageTwoCpuTime = currentCpuTime() - (startCpuTime + stageOneCpuTime);
 		Collections.sort(myData.finalIntersection);
 		for (BigInteger bi : myData.finalIntersection) {
 			String outputLine = BigIntegerEncoding.decode(bi);
 			Intersect.println(outputLine);
 		}
-		
-		if (quiet) {
-			System.out.println("Items: " + myData.myFile.size() +
-					"\tIntersection cardinality: " + myData.finalIntersection.size());
-		}
 
-		
-		
+
 		//cpuTime += prevSocket.getCpuTime();
 
 		//tSystemTime = currentSystemTime();
@@ -267,6 +275,11 @@ public class Intersect extends Thread {
 		realCpuTime = totalCpuTime - startCpuTime;
 
 		int totalBytesRead = prevSocket.closeSocket();
+
+		long finishTime = System.currentTimeMillis();
+		wallTimeAll = finishTime - wallTimeAll;
+		wallTimeInput = finishTime - wallTimeInput;
+		wallTimeCalc = finishTime - wallTimeCalc;
 
 		if (!suppress_timing) {
 			try {
@@ -282,15 +295,19 @@ public class Intersect extends Thread {
 					bwstats.write(Integer.toString(elg.getPrime().bitLength()));
 				}
 				bwstats.write(",");
-				bwstats.write(Integer.toString(stageOneBytesRead/1024));
+				bwstats.write(Integer.toString(myData.finalIntersection.size()));
 				bwstats.write(",");
 				bwstats.write(Integer.toString(totalBytesRead/1024));
 				bwstats.write(",");
-				bwstats.write(Long.toString(stageOneCpuTime/1000000L));
-				bwstats.write(",");
-				bwstats.write(Long.toString(stageTwoCpuTime/1000000L));
+				bwstats.write(Long.toString(realCpuTime/1000000L));
 				bwstats.write(",");
 				bwstats.write(Long.toString(totalCpuTime/1000000L));
+				bwstats.write(",");
+				bwstats.write(Long.toString(wallTimeCalc));
+				bwstats.write(",");
+				bwstats.write(Long.toString(wallTimeInput));
+				bwstats.write(",");
+				bwstats.write(Long.toString(wallTimeAll));
 				bwstats.newLine();
 				bwstats.close();
 			} catch (IOException e) {
@@ -298,14 +315,23 @@ public class Intersect extends Thread {
 			}
 		}
 
+
+		if (quiet) {
+			System.out.println("Items: " + myData.myFile.size() +
+					"\tIntersection cardinality: " + myData.finalIntersection.size());
+		}
+
 		Intersect.println("Items: " + myData.myFile.size());
 		//Intersect.println("System Time: " + systemTime/1000000L + " ms");
 		//Intersect.println("User Time: " + userTime/1000000L + " ms");
-		Intersect.println("Stage One CPU Time: " + stageOneCpuTime/1000000L + " ms");
+		//Intersect.println("Stage One CPU Time: " + stageOneCpuTime/1000000L + " ms");
 		Intersect.println("Real CPU Time: " + realCpuTime/1000000L + " ms");
 		//Intersect.println("Total System Time: " + currentSystemTime()/1000000L + " ms");
 		//Intersect.println("Total User Time: " + currentUserTime()/1000000L + " ms");
 		Intersect.println("Total CPU Time: " + totalCpuTime/1000000L + " ms");
+		Intersect.println("Total Wall Time: " + wallTimeAll + " ms");
+		Intersect.println("Wall Time (without connection): " + wallTimeInput + " ms");
+		Intersect.println("Wall Time (without file I/O): " + wallTimeCalc + " ms");
 
 		System.exit(0);
 
