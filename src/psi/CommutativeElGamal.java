@@ -168,7 +168,7 @@ public class CommutativeElGamal extends ElGamal {
 		//Find the c1 used with this key's id
 		for (i = 0; i < data.length - 1; i += 2) {
 			try {
-				if (data[i].intValueExact() == id) {
+				if (data[i].intValue() == id) {
 					break;
 				}
 			} catch (ArithmeticException e) {
@@ -205,7 +205,7 @@ public class CommutativeElGamal extends ElGamal {
 			return data[data.length - 1];
 		}
 		try {
-			if (data.length == 3 && data[0].intValueExact() != id) {
+			if (data.length == 3 && data[0].intValue() != id) {
 				System.err.println("Error - id used to encrypt does not match this id");
 				return data[data.length - 1];
 			}
