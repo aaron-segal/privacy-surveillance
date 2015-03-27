@@ -143,10 +143,12 @@ public class Data {
 	public void encryptFile(ArrayList<BigInteger[]> file, CommutativeElGamal elg){
 		EncryptWorker threads[];
 		if (numThreads == 0) {
-			threads = new EncryptWorker[file.size()];
+			int avail = Runtime.getRuntime().availableProcessors();
+			threads = new EncryptWorker[avail];
 		} else {
 			threads = new EncryptWorker[numThreads];
 		}
+		Intersect.println("Starting " + threads.length + " encrypt threads.");
 		for (int i = 0; i < threads.length; i++) {
 			threads[i] = new EncryptWorker(file.listIterator(i * file.size() / threads.length), 
 					(i+1) * file.size() / threads.length, elg, ph);
@@ -167,11 +169,15 @@ public class Data {
 
 	public void decryptIntersection(ArrayList<BigInteger> list) {
 		DecryptWorker threads[];
+/*
 		if (numThreads == 0) {
 			threads = new DecryptWorker[list.size()];
 		} else {
 			threads = new DecryptWorker[numThreads];
 		}
+*/
+		threads = new DecryptWorker[1];
+		Intersect.println("Starting " + threads.length + " decrypt threads.");
 		for (int i = 0; i < threads.length; i++) {
 			threads[i] = new DecryptWorker(list.listIterator(i * list.size() / threads.length), 
 					(i+1) * list.size() / threads.length, ph);

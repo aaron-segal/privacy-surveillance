@@ -1,1 +1,1 @@
-Items,Key Length,Stage 1 KBytes Read,Total KBytes Read,Stage 1 CPU Time,Stage 2 CPU Time,Total CPU Time
+Items,Key Length,Intersection Size,Total KBytes Read,Stage 1 CPU Time,Total CPU Time,Wall Time,Wall Time (with data I/O),Wall Time (with network connection)

@@ -17,8 +17,11 @@ public class EncryptWorker extends Thread {
 	}
 	
 	public void run() {
-		for (int i = iterator.nextIndex(); i < maxItem && iterator.hasNext(); i++){
-
+		long id = Thread.currentThread().getId();
+		int minItem = iterator.nextIndex();
+		Intersect.println("Thread " + id + " starting encryption with item " + minItem);	
+		for (int i = minItem; i < maxItem && iterator.hasNext(); i++){
+			Intersect.println("Thread " + id + " progress: " + ((100.0*(i - minItem)) / (maxItem - minItem)) + "% complete");
 			/* 
 			 * decrypt from ElGamal, then encrypt all remaining c1s and c2 with PohligHellman.
 			 * For example, if xi is i's ElGamal private key, yi is the ephemeral private key that goes
@@ -35,6 +38,7 @@ public class EncryptWorker extends Thread {
 			decrypted[decrypted.length - 1] = ph.encrypt(decrypted[decrypted.length - 1]); 
 			iterator.set(decrypted);
 		}
+		Intersect.println("Thread " + id + " finished encryption at item " + maxItem);
 	}
 	
 }

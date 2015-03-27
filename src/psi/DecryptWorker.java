@@ -15,11 +15,14 @@ public class DecryptWorker extends Thread {
 	}
 	
 	public void run() {
-		for (int i = iterator.nextIndex(); i < maxItem && iterator.hasNext(); i++){
+		int i = iterator.nextIndex();
+		Intersect.println("Starting decryption with item " + i);	
+		for (; i < maxItem && iterator.hasNext(); i++){
 
 			BigInteger val = iterator.next();
 			iterator.set(ph.decrypt(val));
 		}
+		Intersect.println("Finished decryption at item " + i);
 	}
 	
 }
