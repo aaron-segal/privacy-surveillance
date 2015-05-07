@@ -176,6 +176,9 @@ public class Intersect extends Thread {
 		}
 
 		myData = new Data(config.getProperty(INPUT_FILE), elg.getPrime(), numThreads);
+		synchronized (prevSocket) {
+			prevSocket.notifyAll();
+		}
 
 		File fileTest = new File(config.getProperty(INPUT_FILE));
 		if (!fileTest.canRead()) {

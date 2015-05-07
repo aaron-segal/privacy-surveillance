@@ -23,6 +23,15 @@ public class MsgHandler extends Thread {
 	}
 
 	public void gotPassOnToEncryptMsg(){
+		// check to make sure we're ready
+		while (user.myData == null) {
+			synchronized (user.prevSocket) {
+				try {
+					user.prevSocket.wait();
+				} catch (InterruptedException e) {
+				}
+			}
+		}
 		// check if I need to encrypt, 
 		if (!msg.operatedOnBy.contains(user.id)){
 			//if yes, encrypt, and pass on to next
